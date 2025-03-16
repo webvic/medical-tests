@@ -65,6 +65,18 @@ def prepare_biomarkers_dict(biomarkers_dict):
 
 # Ищем OCR текст в словаре синонимов
 def process_match(query, biomarkers_dict):
+    """
+    Выполняет поиск совпадений в словаре биомаркеров.
+
+    Параметры:
+        query (str): Входной текст для поиска.
+        biomarkers_dict (dict): Словарь биомаркеров, где ключ — название группы, значение словарь - индекс группы, список синонимов.
+
+    Возвращает:
+        predicted_group (str): Найденная группа биомаркеров или None, если совпадений нет.
+        similarity (float): Процент схожести (0.0–100.0) с найденным синонимом.
+        group_index (int): Индекс группы в словаре или None, если совпадений нет.
+    """
     # ✅ Нормализация текста
     query_norm = clean_text(normalize_text(query))
 
