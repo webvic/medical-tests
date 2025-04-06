@@ -1,5 +1,5 @@
 from constants import biomarkers_dict
-from test_ocr_gen import generate_test_set
+# from test_ocr_gen import generate_test_set
 import difflib
 import pandas as pd
 import re
@@ -21,7 +21,6 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     # Убираем пробелы в начале и конце строки
     return text.strip()
-
 
 # Анализ текста
 def analyze_text(text):
@@ -51,20 +50,21 @@ def normalize_text(text):
     return text
 
 # Подготовка словаря
-def prepare_biomarkers_dict(biomarkers_dict):
-    normalized_dict = {}
-    for index, (key, data) in enumerate(biomarkers_dict.items()):
-        normalized_key = key.lower()
-        normalized_synonyms = [clean_text(syn) for syn in data["синонимы"]]
-        normalized_dict[normalized_key] = {
-            "синонимы": normalized_synonyms,
-            "индекс": index
-        }
-    return normalized_dict
+def all_synonims_dict(biomarkers_dict):
+    all_synonyms = {}
+    for group_name, group_data in biomarkers_dict.items():
+        group_id = group_data.get("id", 0)  # значение id из словаря
+        for synonym in group_data.get("синонимы", []):
+            normalized_syn = clean_text(synonym)
+            all_synonyms[normalized_syn] = (group_name, group_id)
+    return all_synonyms
 
+
+# Строим словарь для поиска id группы по развернутому словарю синонимов
+all_synonyms = all_synonims_dict(biomarkers_dict)
 
 # Ищем OCR текст в словаре синонимов
-def process_match(query, biomarkers_dict):
+def process_match(query, all_synonyms=all_synonyms):
     """
     Выполняет поиск совпадений в словаре биомаркеров.
 
@@ -82,7 +82,6 @@ def process_match(query, biomarkers_dict):
 
     # ✅ Внутренняя функция для поиска совпадений
     def find_best_match(text, biomarkers_dict, cutoff=0.7):
-        all_synonyms = {clean_text(syn): (group, idx) for idx, (group, data) in enumerate(biomarkers_dict.items()) for syn in data['синонимы']}
 
         # Полное совпадение
         if text in all_synonyms:
@@ -131,7 +130,7 @@ def evaluate_accuracy(test_dict, biomarkers_dict):
     results = []
 
     for original, query in test_dict.items():
-        predicted_group, similarity, group_index = process_match(query, biomarkers_dict)
+        predicted_group, similarity, group_index = process_match(query)
 
         original_norm = clean_text(original.split('_')[0])
         true_group = next((group for group, syns in biomarkers_dict.items() if original_norm in syns['синонимы']), None)
@@ -175,6 +174,6 @@ def evaluate_accuracy(test_dict, biomarkers_dict):
     df.to_csv('results.csv', index=False)
 
 # Запуск теста
-test_dict = generate_test_set(biomarkers_dict)
-biomarkers_dict_prepared = prepare_biomarkers_dict(biomarkers_dict)
-evaluate_accuracy(test_dict, biomarkers_dict_prepared)
+# test_dict = generate_test_set(biomarkers_dict)
+# biomarkers_dict_prepared = prepare_biomarkers_dict(biomarkers_dict)
+# evaluate_accuracy(test_dict, biomarkers_dict_prepared)
