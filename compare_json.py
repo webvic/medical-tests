@@ -1,7 +1,8 @@
 import pandas as pd
-import json
 import numpy as np
 from typing import Tuple
+from process_llm_output import parse_lab_results
+from typing import Dict, Tuple
 
 def safe_load_json(jstring: str):
     import json
@@ -16,10 +17,6 @@ def safe_load_json(jstring: str):
             return json.loads(decoded)
         except Exception as e:
             raise ValueError(f"Невозможно распарсить JSON после двойного преобразования: {e}")
-
-
-
-from typing import Dict, Tuple
 
 
 def compare_jsons(ref_data: Dict, rec_data: Dict) -> Tuple[int, int, int, float, str]:
@@ -44,6 +41,7 @@ def compare_jsons(ref_data: Dict, rec_data: Dict) -> Tuple[int, int, int, float,
     missing_ids = ref_ids - rec_ids
     extra_ids = rec_ids - ref_ids
     common_ids = ref_ids & rec_ids
+    print('Отсутствуют id ',missing_ids, 'лишние id', extra_ids, 'Ошибки OCR',end = ' ')
 
     value_errors = 0
     error_details = []
@@ -58,13 +56,14 @@ def compare_jsons(ref_data: Dict, rec_data: Dict) -> Tuple[int, int, int, float,
             rec_float = round(float(rec_val.replace(',', '.')), 2)
             if not np.isclose(ref_float, rec_float, atol=0.01):
                 value_errors += 1
-                error_details.append(f"{ref_val}: {rec_val}")
+                error_details.append(f"id: {i} ({ref_val}->{rec_val})")
         except ValueError:
             value_errors += 1
-            error_details.append(f"{ref_val}: {rec_val}")
+            error_details.append(f"id: {i} ({ref_val}->{rec_val})")
 
     total_ref = len(ref_ids)
     total_errors = len(missing_ids) + len(extra_ids) + value_errors
+    print(value_errors, error_details)
     total_possible = total_ref + len(extra_ids)
     error_percent = (total_errors / total_possible) * 100 if total_possible > 0 else 0.0
 
@@ -81,12 +80,19 @@ def test_compare_json(df):
         if col not in df.columns:
             df[col] = None
 
+    # print(df.columns.tolist())
+    # print(df[["LLM - Шаг 1"]])
+
+
     # Основной цикл сравнения
     for i, row in df.iterrows():
         print("Строка ",i,row["Документ"],"Эталон ", end=' ')
         reference_json = fix_and_parse_json(row["Эталонный json"])
         print("ОК, OCR ",end=' ')
-        recognized_json = fix_and_parse_json(row["Вывод LLM (распознанный текст)"])
+        
+        # Преобразуем структурированный текст в словарь
+        # recognized_json =parse_lab_results(row["LLM - Шаг 1"])
+        recognized_json = fix_and_parse_json(row["JSON - шаг 2"])
         print("ОК ")
 
         if not reference_json or not recognized_json:
@@ -300,7 +306,9 @@ path = "https://docs.google.com/spreadsheets/d/1lVHwpk8C4bfkAqTIFqOr82v0P1V75_n9
 
 test_table_path = 'https://docs.google.com/spreadsheets/d/1Xh4LBFGmi8KTyOYAEVB3ymGiuMpJYpRNBVpYpKoY9xs/export?format=csv&gid=0'
 
-df_test = pd.read_csv('Вариант 2.csv')
+df_test = pd.read_csv('Результаты - Новые тксты (1 модель).csv')
+
+print(df_test)
 
 df = test_compare_json(df_test)
 summarize_sections_optimized(df)
